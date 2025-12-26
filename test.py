@@ -36,18 +36,18 @@ if "show_profile" not in st.session_state:
 if "generated" not in st.session_state:
     st.session_state.generated = False
 
+if "awaiting_otp" not in st.session_state:
+    st.session_state.awaiting_otp = False
+
+
 if "demo_image" not in st.session_state:
     st.session_state.demo_image = None
 
 if "demo_result" not in st.session_state:
     st.session_state.demo_result = None
 
-if "paid" not in st.session_state:
-    st.session_state.paid = False
-
-if "ask_payment" not in st.session_state:
-    st.session_state.ask_payment = False
-
+if "paid_for_current" not in st.session_state:
+    st.session_state.paid_for_current = False
 
 @st.cache_data
 def load_lottie(path):
@@ -97,94 +97,266 @@ def set_background(image_path, overlay=True):
 # ==================================================
 st.markdown(
     f"""
-<style>
+    <style>
+    .navbar {{
+        position: sticky;
+        top: 0;
+        z-index: 9999;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 36px;
+        background: linear-gradient(
+            135deg,
+            rgba(15,23,42,0.85),
+            rgba(49,46,129,0.85)
+        );
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+        box-shadow: 0 12px 30px rgba(0,0,0,0.25);
+    }}
 
-.app-header {{
-    margin-top: 0.10rem;
-    margin-bottom: 0.10rem;
-}}
+    .nav-left {{
+        display: flex;
+        align-items: center;
+        gap: 36px;
+    }}
 
-.card {{
-    background: rgba(255,255,255,0.96);
-    color: #1F2937;
-    padding: 28px;
-    border-radius: 20px;
-    box-shadow: 0 30px 60px rgba(0,0,0,0.35);
-}}
+    .nav-logo {{
+        font-size: 22px;
+        font-weight: 700;
+        color: white;
+        letter-spacing: 0.5px;
+    }}
 
-/* ===== SAFE GLOWING BUTTON EFFECT ===== */
-.stButton > button {{
-    position: relative !important;
-    background: linear-gradient(135deg, #7C5CFF, #9F7BFF) !important;
-    color: white !important;
-    border-radius: 10px !important;
-    border: none !important;
-    font-weight: 600 !important;
+    .nav-links {{
+        display: flex;
+        gap: 24px;
+    }}
 
-    /* Glow */
-    box-shadow: 0 0 14px rgba(124, 92, 255, 0.6);
-    transition: box-shadow 0.3s ease, transform 0.2s ease;
-}}
+    .nav-links a {{
+        text-decoration: none;
+        color: rgba(255,255,255,0.9);
+        font-weight: 500;
+        position: relative;
+    }}
 
-/* Hover glow */
-.stButton > button:hover {{
-    box-shadow: 0 0 28px rgba(124, 92, 255, 0.95);
-    transform: translateY(-1px);
-}}
+    .nav-links a::after {{
+        content: "";
+        position: absolute;
+        width: 0%;
+        height: 2px;
+        bottom: -4px;
+        left: 0;
+        background: #9F7BFF;
+        transition: width 0.3s ease;
+    }}
 
-/* Click */
-.stButton > button:active {{
-    box-shadow: 0 0 18px rgba(124, 92, 255, 0.8);
-    transform: scale(0.97);
-}}
+    .nav-links a:hover::after {{
+        width: 100%;
+    }}
 
-.section {{
-    padding: 3rem 2rem;
-    border-radius: 20px;
-    margin-bottom: 2.5rem;
-}}
+    .nav-actions {{
+        display: flex;
+        gap: 14px;
+    }}
 
-.section-light {{
-    background: rgba(255, 255, 255, 0.95);
-    color: #1F2937;
-}}
+    .nav-actions button {{
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        border: none;
+        cursor: pointer;
+    }}
 
-.section-dark {{
-    background: rgba(15, 23, 42, 0.85);
-    color: #1f2937;
-}}
+    .btn-login {{
+        background: transparent;
+        border: 1px solid rgba(255,255,255,0.5);
+        color: white;
+    }}
 
-.section-gradient {{
-    background: linear-gradient(135deg, #7C5CFF, #9F7BFF);
-    color: #1f2937;
-}}
+    .btn-login:hover {{
+        background: rgba(255,255,255,0.15);
+    }}
 
-.animated-bg {{
-    background: linear-gradient(
-        -45deg,
-        #7C5CFF,
-        #9F7BFF,
-        #22d3ee,
-        #a78bfa
-    );
-    background-size: 400% 400%;
-    animation: gradientMove 12s ease infinite;
-}}
+    .btn-register {{
+        background: linear-gradient(135deg, #7C5CFF, #9F7BFF);
+        color: white;
+        box-shadow: 0 0 20px rgba(159,123,255,0.6);
+    }}
 
-/* Animation */
-@keyframes gradientMove {{
-    0% {{ background-position: 0% 50%; }}
-    50% {{ background-position: 100% 50%; }}
-    100% {{ background-position: 0% 50%; }}
-}}
+    .btn-register:hover {{
+        opacity: 0.9;
+    }}
 
-.center {{
-    text-align: center;
-}}
-</style>
-""",
-    unsafe_allow_html=True
-)
+    /* Remove Streamlit default button spacing */
+    .navbar .stButton {{
+        margin-top: 0;
+    }}
+    header[data-testid="stHeader"] {{
+    display: none;
+    }}
+
+    /* Optional: hide Streamlit footer */
+    footer {{
+        display: none;
+    }}
+
+    /* Remove extra spacing after hiding header */
+    .stApp {{
+        padding-top: 0;
+    }}
+    /* REMOVE STREAMLIT DEFAULT TOP SPACE */
+   
+    .block-container {{
+        padding-top: 0rem !important;
+        max-width: 100% !important;
+    }}
+
+    /* ================= FIXED HEADER CARD ================= */
+
+    .app-header {{
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        z-index: 9999;
+
+        background: linear-gradient(
+            135deg,
+            rgba(15, 23, 42, 0.96),
+            rgba(49, 46, 129, 0.96)
+        );
+
+        backdrop-filter: blur(14px);
+        -webkit-backdrop-filter: blur(14px);
+
+        box-shadow: 0 14px 40px rgba(0,0,0,0.45);
+    }}
+
+    .header-inner {{
+        max-width: 1200px;
+        margin: auto;
+        padding: 16px 32px;
+
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }}
+
+    .header-title {{
+        font-size: 30px;
+        font-weight: 700;
+        color: white;
+        margin: 0;
+    }}
+
+    .app-header .stButton > button {{
+        border-radius: 12px;
+        font-weight: 600;
+        padding: 8px 20px;
+    }}
+
+    /* Push page content below fixed header */
+    .header-spacer {{
+        height: 90px;
+    }}
+
+    .card {{
+        background: rgba(255,255,255,0.96);
+        color: #1F2937;
+        padding: 28px;
+        border-radius: 20px;
+        box-shadow: 0 30px 60px rgba(0,0,0,0.35);
+    }}
+    .glass-image-card {{
+            background: rgba(255, 255, 255, 0.15);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border-radius: 22px;
+            border: 1px solid rgba(255, 255, 255, 0.35);
+            padding: 18px;
+            box-shadow: 0 35px 70px rgba(0,0,0,0.35);
+        }}
+
+    .glass-image-card img {{
+        border-radius: 16px;
+    }}
+
+    /* ===== SAFE GLOWING BUTTON EFFECT ===== */
+    .stButton > button {{
+        position: relative !important;
+        background: linear-gradient(135deg, #7C5CFF, #9F7BFF) !important;
+        color: white !important;
+        border-radius: 10px !important;
+        border: none !important;
+        font-weight: 600 !important;
+
+        /* Glow */
+        box-shadow: 0 0 14px rgba(124, 92, 255, 0.6);
+        transition: box-shadow 0.3s ease, transform 0.2s ease;
+    }}
+
+    /* Hover glow */
+    .stButton > button:hover {{
+        box-shadow: 0 0 28px rgba(124, 92, 255, 0.95);
+        transform: translateY(-1px);
+    }}
+
+    /* Click */
+    .stButton > button:active {{
+        box-shadow: 0 0 18px rgba(124, 92, 255, 0.8);
+        transform: scale(0.97);
+    }}
+
+    .section {{
+        padding: 3rem 2rem;
+        border-radius: 20px;
+        margin-bottom: 2.5rem;
+    }}
+
+    .section-light {{
+        background: rgba(255, 255, 255, 0.95);
+        color: #1F2937;
+    }}
+
+    .section-dark {{
+        background: rgba(15, 23, 42, 0.85);
+        color: #1f2937;
+    }}
+
+    .section-gradient {{
+        background: linear-gradient(135deg, #7C5CFF, #9F7BFF);
+        color: #1f2937;
+    }}
+
+    .animated-bg {{
+        background: linear-gradient(
+            -45deg,
+            #7C5CFF,
+            #9F7BFF,
+            #22d3ee,
+            #a78bfa
+        );
+        background-size: 400% 400%;
+        animation: gradientMove 12s ease infinite;
+    }}
+
+    /* Animation */
+    @keyframes gradientMove {{
+        0% {{ background-position: 0% 50%; }}
+        50% {{ background-position: 100% 50%; }}
+        100% {{ background-position: 0% 50%; }}
+    }}
+
+    .center {{
+        text-align: center;
+    }}
+    </style>
+    """,
+        unsafe_allow_html=True
+    )
 
 # ==================================================
 # SESSION STATE
@@ -202,26 +374,144 @@ def hash_pwd(p):
 
 def set_page(p):
     st.session_state.page = p
+#===========navbar==============
+def render_navbar():
+    components.html(
+    """
+    <style>
+    .navbar {
+        position: sticky;
+        top: 0;
+        z-index: 9999;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 36px;
+        background: linear-gradient(135deg, rgba(15,23,42,0.9), rgba(49,46,129,0.9));
+        backdrop-filter: blur(14px);
+        border-bottom: 1px solid rgba(255,255,255,0.15);
+        font-family: Inter, sans-serif;
+    }
+
+    .nav-left {
+        display: flex;
+        align-items: center;
+        gap: 36px;
+    }
+
+    .logo {
+        font-size: 22px;
+        font-weight: 700;
+        color: white;
+    }
+
+    .nav-links a {
+        margin-right: 24px;
+        text-decoration: none;
+        color: rgba(255,255,255,0.9);
+        font-weight: 500;
+        position: relative;
+    }
+
+    .nav-links a::after {
+        content: "";
+        position: absolute;
+        width: 0%;
+        height: 2px;
+        bottom: -4px;
+        left: 0;
+        background: #9F7BFF;
+        transition: width 0.3s ease;
+    }
+
+    .nav-links a:hover::after {
+        width: 100%;
+    }
+
+    .nav-actions a {
+        margin-left: 12px;
+        padding: 8px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        text-decoration: none;
+    }
+
+    .login {
+        border: 1px solid rgba(255,255,255,0.5);
+        color: white;
+    }
+
+    .register {
+        background: linear-gradient(135deg, #7C5CFF, #9F7BFF);
+        color: white;
+        box-shadow: 0 0 20px rgba(159,123,255,0.6);
+    }
+    </style>
+
+    <div class="navbar">
+        <div class="nav-left">
+            <div class="logo">✨ Toonify</div>
+
+            <div class="nav-links">
+                <a href="#home">Home</a>
+                <a href="#features">Features</a>
+                <a href="#technology">Technology</a>
+            </div>
+        </div>
+
+        <div class="nav-actions">
+            <a href="?page=login" class="login">Login</a>
+            <a href="?page=signup" class="register">Register</a>
+        </div>
+    </div>
+    """,
+    height=80,
+    scrolling=False
+)
+
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        if st.button("Login", key="nav_login"):
+            st.session_state.current_page = "login"
+            st.rerun()
+
+    with c2:
+        if st.button("Register", key="nav_register"):
+            st.session_state.current_page = "signup"
+            st.rerun()
+
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
 
 # ==================================================
 # HEADER
 # ==================================================
 def render_header():
     st.markdown('<div class="app-header">', unsafe_allow_html=True)
-    c1, c2 = st.columns([7, 3])
+    st.markdown('<div class="header-inner">', unsafe_allow_html=True)
 
-    with c1:
-        st.markdown("<h1>Toonify🖌️</h1>", unsafe_allow_html=True)
+    col1, col2 = st.columns([6, 3])
 
-    with c2:
+    with col1:
+        st.markdown(
+            '<h1 class="header-title">✨ Toonify</h1>',
+            unsafe_allow_html=True
+        )
+
+    with col2:
         b1, b2 = st.columns(2)
+
         if not st.session_state.logged_in:
             b1.button("Login", key="header_login", on_click=set_page, args=("login",))
             b2.button("Register", key="header_register", on_click=set_page, args=("signup",))
         else:
             b2.button("Logout", key="header_logout", on_click=set_page, args=("landing",))
 
-    st.markdown("</div>", unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
+
+    # spacer so content doesn't go under header
+    st.markdown('<div class="header-spacer"></div>', unsafe_allow_html=True)
+
 # ==================================================
 # IMAGE SLIDER (SAFE + 3 SECONDS)
 # ==================================================
@@ -229,7 +519,6 @@ def render_slider():
     slides = [
         "assets/example1.webp",
         "assets/example2.webp",
-        "assets/example3.webp",
     ]
 
     slides = [s for s in slides if Path(s).exists()]
@@ -353,6 +642,7 @@ def landing_page():
 
 
     # ================= FEATURES SECTION (NEW) =================
+    st.markdown('<div id="features"></div>', unsafe_allow_html=True)
     st.markdown("## 🚀 Key Features")
 
     f1, f2, f3 = st.columns(3)
@@ -415,31 +705,40 @@ def landing_page():
         if st.button("⬇ Download Cartoon", key="demo_download"):
             st.warning("🔒 Please login to download this image")
 
-    # ================= TECHNOLOGY STACK (NEW) =================
     st.markdown("---")
-    st.markdown("## 🧪 Technology Behind Toonify")
 
-    st.markdown(
-        """
-- **Frontend:** Streamlit, HTML, CSS  
-- **Backend:** Python  
-- **AI & Image Processing:** OpenCV, PIL, NumPy  
-- **Enhancement Techniques:** Color adjustment, edge detection  
-- **Security:** Controlled demo access & authentication  
-        """
-    )
+    col_text, col_image = st.columns([3, 2])  # text wider than image
 
-    # ================= PRIVACY SECTION (NEW) =================
-    st.markdown("## 🔒 Privacy & Trust")
+    with col_text:
+        # ================= TECHNOLOGY STACK =================
+        st.markdown("## 🧪 Technology Behind Toonify")
+        st.markdown(
+            """
+    - **Frontend:** Streamlit, HTML, CSS  
+    - **Backend:** Python  
+    - **AI & Image Processing:** OpenCV, PIL, NumPy  
+    - **Enhancement Techniques:** Color adjustment, edge detection  
+    - **Security:** Controlled demo access & authentication  
+            """
+        )
 
-    st.markdown(
-        """
-✔ Images are processed securely  
-✔ No permanent image storage  
-✔ No third-party sharing  
-✔ Ethical and responsible AI usage  
-        """
-    )
+        st.markdown("## 🔒 Privacy & Trust")
+        st.markdown(
+            """
+    ✔ Images are processed securely  
+    ✔ No permanent image storage  
+    ✔ No third-party sharing  
+    ✔ Ethical and responsible AI usage  
+            """
+        )
+
+    with col_image:
+        st.markdown("<br><br><br>", unsafe_allow_html=True)  # vertical alignment
+        st.image(
+            "assets/cns.webp",  # single image
+            use_container_width=True
+        )
+
 
     # ================= FINAL CTA =================
     st.markdown("---")
@@ -549,6 +848,16 @@ def login_page():
         st.markdown("🔐 Protected with secure authentication")
         st.markdown("✅ No data shared with third parties")
 
+        # ✅ --------- ADMIN LOGIN OPTION (ADDED ONLY) ---------
+        st.markdown("---")
+        st.markdown(
+            "<p style='font-size:14px;'>Are you an admin?</p>",
+            unsafe_allow_html=True
+        )
+        if st.button("🔑 Click here for Admin Login", key="admin_login_btn"):
+            set_page("admin_login")
+        # -----------------------------------------------------
+
     with right_col:
         st.markdown("### 🎨 Cartoon Styles Available")
 
@@ -565,6 +874,60 @@ def login_page():
             style_image_card("assets/sketch.png", "Sketch Style")
 
 
+def admin_login_page():
+    set_background("assets/bn.png", overlay=True)
+    st.button("⬅ Back to Home", key="back_login", on_click=set_page, args=("landing",))
+    st.markdown("## Welcome back 👋")
+    st.markdown("Login to continue using Toonify")
+
+    left_col, right_col = st.columns([1.2, 1])
+
+    with left_col:
+        # 🔐 Login form here
+        st.subheader("Login to Toonify")
+        email = st.text_input("Email", key="login_email")
+        password = st.text_input("Password", type="password", key="login_pwd")
+
+        if st.button("Login", key="login_btn"):
+            if not email or not password:
+                st.warning("Please enter email and password")
+            else:
+                status, response = api_login(email, password)
+
+                if status == 200:
+                    # ✅ Login success
+                    st.session_state.logged_in = True
+                    st.session_state.current_user = {
+                        "first_name": response.get("first_name", "User"),
+                        "last_name": response.get("last_name", ""),
+                        "joined_on": response.get("joined_on", ""),
+                    }
+                    st.success("Login successful 🎉")
+                    set_page("admin_dashboard")
+                    st.rerun()
+                else:
+                    st.error(response.get("message", "Login failed"))
+
+        st.markdown("### Why Login?")
+        st.markdown(" 🔒 End-to-end encrypted login")
+        st.markdown("🛡️ Your data is safe & private")
+        st.markdown("🔐 Protected with secure authentication")
+        st.markdown("✅ No data shared with third parties")
+
+    with right_col:
+        st.markdown("### 🎨 Cartoon Styles Available")
+
+        r1c1, r1c2 = st.columns(2)
+        with r1c1:
+            style_image_card("assets/anime.png", "Anime Style")
+        with r1c2:
+            style_image_card("assets/ghibli.png", "Ghibli Style")
+
+        r2c1, r2c2 = st.columns(2)
+        with r2c1:
+            style_image_card("assets/portrait.png", "Portrait Style")
+        with r2c2:
+            style_image_card("assets/sketch.png", "Sketch Style")
 
 # ==================================================
 # SIGNUP PAGE
@@ -588,10 +951,176 @@ def password_strength(password: str):
         return "Medium ⚠️", "orange"
     else:
         return "Strong ✅", "green"
+    
+def admin_dashboard_page():
+    total_earnings = 12500   # ₹
+    total_downloads = 342
+
+    users = [
+        {"name": "Santhosh", "email": "santhosh@gmail.com", "downloads": 120, "spent": 4500},
+        {"name": "Anjali", "email": "anjali@gmail.com", "downloads": 98, "spent": 3800},
+        {"name": "Rahul", "email": "rahul@gmail.com", "downloads": 124, "spent": 4200},
+    ]
+
+    html = f"""
+    <style>
+    .admin-wrapper {{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 90vh;
+    }}
+
+    .admin-card {{
+        width: 1000px;
+        background: linear-gradient(135deg, #020617, #312E81, #4C1D95);
+        border-radius: 24px;
+        padding: 45px 55px;
+        color: white;
+        box-shadow: 0 40px 90px rgba(0,0,0,0.55);
+        font-family: Inter, sans-serif;
+    }}
+
+    .admin-header {{
+        display: flex;
+        align-items: center;
+        gap: 22px;
+        margin-bottom: 35px;
+    }}
+
+    .admin-avatar {{
+        width: 82px;
+        height: 82px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #22D3EE, #6366F1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 34px;
+        font-weight: bold;
+    }}
+
+    .admin-name {{
+        font-size: 28px;
+        font-weight: 700;
+    }}
+
+    .admin-role {{
+        font-size: 14px;
+        color: #CBD5E1;
+    }}
+
+    .section-title {{
+        font-size: 20px;
+        font-weight: 600;
+        margin: 32px 0 18px;
+    }}
+
+    .stats-grid {{
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 22px;
+    }}
+
+    .stat-box {{
+        background: rgba(255,255,255,0.09);
+        border-radius: 16px;
+        padding: 22px;
+    }}
+
+    .stat-label {{
+        font-size: 14px;
+        color: #CBD5E1;
+    }}
+
+    .stat-value {{
+        font-size: 30px;
+        font-weight: 700;
+        margin-top: 6px;
+    }}
+
+    .user-table {{
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 10px;
+    }}
+
+    .user-table th {{
+        text-align: left;
+        font-size: 14px;
+        color: #CBD5E1;
+        padding-bottom: 12px;
+    }}
+
+    .user-table td {{
+        padding: 14px 0;
+        border-bottom: 1px solid rgba(255,255,255,0.08);
+        font-size: 15px;
+    }}
+
+    .money {{
+        color: #22C55E;
+        font-weight: 600;
+    }}
+    </style>
+
+    <div class="admin-wrapper">
+      <div class="admin-card">
+
+        <div class="admin-header">
+          <div class="admin-avatar">🛡️</div>
+          <div>
+            <div class="admin-name">Admin Dashboard</div>
+            <div class="admin-role">System Administrator</div>
+          </div>
+        </div>
+
+        <div class="section-title">📊 Platform Overview</div>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-label">Total Earnings</div>
+            <div class="stat-value money">₹ {total_earnings}</div>
+          </div>
+
+          <div class="stat-box">
+            <div class="stat-label">Total Downloads</div>
+            <div class="stat-value">{total_downloads}</div>
+          </div>
+        </div>
+
+        <div class="section-title">👥 User Activity</div>
+
+        <table class="user-table">
+          <tr>
+            <th>User</th>
+            <th>Email</th>
+            <th>Downloads</th>
+            <th>Amount Spent</th>
+          </tr>
+    """
+
+    for u in users:
+        html += f"""
+        <tr>
+            <td>{u['name']}</td>
+            <td>{u['email']}</td>
+            <td>{u['downloads']}</td>
+            <td class="money">₹ {u['spent']}</td>
+        </tr>
+        """
+
+    html += """
+        </table>
+
+      </div>
+    </div>
+    """
+
+    components.html(html, height=800)
 
 
 def signup_page():
-    set_background("assets/jjj.png", overlay=True)
+    set_background("assets/babaoi.png", overlay=True)
     st.button("⬅ Back", key="back_signup", on_click=set_page, args=("landing",))
 
     left, right = st.columns([5, 4], gap="large")
@@ -726,8 +1255,8 @@ def render_topbar():
         )
 
     with col3:
-        if st.button("👤 Profile"):
-            st.session_state.show_profile = True
+        if st.button("👤 Profile", key="open_profile"):
+            st.session_state.page = "profile"
 
 
 def render_profile_page():
@@ -1060,16 +1589,14 @@ def render_profile_page():
 
     components.html(html, height=780)
 
+    if st.button("⬅ Back to convert images", key="back_app"):
+        st.session_state.page = "app"
 
 
-
-
+# ==================================================#
 def app_page():
-    set_background("assets/jjj.png", overlay=True)
+    set_background("assets/nano.png", overlay=True)
     render_topbar()
-
-    if st.session_state.get("show_profile"):
-        render_profile_page()
 
     st.markdown("### Upload an image")
 
@@ -1078,6 +1605,10 @@ def app_page():
         type=["png", "jpg", "jpeg"],
         accept_multiple_files=False,
     )
+
+    # 🔹 RESET PAYMENT WHEN NEW IMAGE IS UPLOADED (STEP 2)
+    if uploaded:
+        st.session_state.paid_for_current = False
 
     style = st.radio(
         "Choose Cartoon Style",
@@ -1097,7 +1628,7 @@ def app_page():
             st.session_state.generated = True
             st.session_state.conversions += 1
 
-            # ✅ TRACK CONVERTED IMAGE (ADD THIS)
+            # Track converted images
             if "user_data" not in st.session_state:
                 st.session_state.user_data = {
                     "converted_images": [],
@@ -1106,7 +1637,6 @@ def app_page():
 
             if uploaded.name not in st.session_state.user_data["converted_images"]:
                 st.session_state.user_data["converted_images"].append(uploaded.name)
-
 
     # -------- SHOW IMAGES (PERSISTENT) --------
     if st.session_state.generated:
@@ -1129,8 +1659,8 @@ def app_page():
         buf = io.BytesIO()
         st.session_state.demo_result.save(buf, format="PNG")
 
-        # -------- DOWNLOAD / PAYMENT FLOW --------
-        if st.session_state.paid:
+        # -------- DOWNLOAD / PAYMENT LOGIC --------
+        if st.session_state.paid_for_current:
             if st.download_button(
                 "⬇ Download Cartoon Image",
                 buf.getvalue(),
@@ -1138,27 +1668,212 @@ def app_page():
                 mime="image/png",
             ):
                 st.session_state.downloads += 1
+                st.session_state.paid_for_current = False  # require payment again
 
         else:
-            if st.button("⬇ Download Cartoon Image", key="download_btn"):
-                st.session_state.ask_payment = True
+            st.warning("🔒 To download this image, please pay ₹50")
 
-            if st.session_state.ask_payment:
-                st.warning("🔒 To download this image, please pay ₹50")
+            if st.button("💳 Pay ₹50", key="pay_btn"):
+                st.session_state.page = "payment"
 
-                col_pay, col_cancel = st.columns(2)
 
-                with col_pay:
-                    if st.button("💳 Pay ₹50", key="pay_btn"):
-                        st.session_state.paid = True
-                        st.session_state.ask_payment = False
-                        st.success("✅ Payment successful! Download enabled.")
 
-                with col_cancel:
-                    if st.button("❌ Cancel", key="cancel_btn"):
-                        st.session_state.ask_payment = False
+import streamlit as st
+import base64
+
+import streamlit as st
+import base64
+
+def render_payment_page():
+    # Initialize session state for payment flow
+    if "awaiting_otp" not in st.session_state:
+        st.session_state.awaiting_otp = False
+    if "paid_for_current" not in st.session_state:
+        st.session_state.paid_for_current = False
+
+    def load_bg(path):
+        try:
+            with open(path, "rb") as f:
+                return base64.b64encode(f.read()).decode()
+        except:
+            return ""
+
+    BG_IMAGE = load_bg("assets/jj.png")
+
+    # --- INJECTING YOUR CUSTOM CSS ---
+    st.markdown(
+        f"""
+        <style>
+        /* Background setup */
+        .stApp {{
+            background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.4)),
+                        url("data:image/jpg;base64,{BG_IMAGE}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }}
+
+        /* Adapted Profile Card Style for Payment */
+        .payment-card {{
+            background: linear-gradient(135deg, #0F172A, #3B0764, #7C2D12);
+            border-radius: 24px;
+            padding: 40px 50px;
+            color: white;
+            box-shadow: 0 40px 80px rgba(0,0,0,0.45);
+            font-family: 'Inter', sans-serif;
+            max-width: 900px;
+            margin: auto;
+        }}
+
+        .payment-header {{
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 30px;
+        }}
+
+        .payment-icon {{
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7C5CFF, #C084FC);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 30px;
+        }}
+
+        .section-title {{
+            font-size: 22px;
+            font-weight: 600;
+            margin-top: 10px;
+            margin-bottom: 20px;
+            color: #E9D5FF;
+        }}
+
+        /* Stat Box Style for Amount */
+        .stat-box {{
+            background: rgba(255,255,255,0.08);
+            border-radius: 16px;
+            padding: 20px;
+            border: 1px solid rgba(255,255,255,0.1);
+            text-align: center;
+        }}
+
+        .stat-label {{ font-size: 14px; color: #CBD5E1; }}
+        .stat-value {{ font-size: 32px; font-weight: bold; margin-top: 6px; color: #22C55E; }}
+
+        /* Input Styling to match dark theme */
+        .stTextInput input, .stSelectbox div[data-baseweb="select"] {{
+            background-color: rgba(255,255,255,0.06) !important;
+            color: white !important;
+            border: 1px solid rgba(255,255,255,0.15) !important;
+            border-radius: 12px !important;
+        }}
+
+        .stButton button {{
+            background: linear-gradient(135deg, #7C5CFF, #C084FC) !important;
+            color: white !important;
+            border: none !important;
+            border-radius: 12px !important;
+            padding: 10px 24px !important;
+            font-weight: 600 !important;
+            width: 100%;
+            transition: all 0.3s ease;
+        }}
+
+        .stButton button:hover {{
+            transform: scale(1.02);
+            box-shadow: 0 10px 20px rgba(124, 92, 255, 0.3);
+        }}
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # Main UI wrapper
+    st.markdown('<div class="payment-card">', unsafe_allow_html=True)
     
-    
+    # Header
+    st.markdown("""
+        <div class="payment-header">
+            <div class="payment-icon">💳</div>
+            <div>
+                <div style="font-size: 26px; font-weight: 600;">Secure Checkout</div>
+                <div style="font-size: 14px; color: #CBD5E1;">Complete your transaction safely</div>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+
+    col1, col2 = st.columns([1, 1.5], gap="large")
+
+    with col1:
+        st.markdown('<div class="section-title">Method</div>', unsafe_allow_html=True)
+        payment_method = st.radio(
+            "Select Method",
+            ["💳 Credit/Debit Card", "📱 UPI Transfer", "👛 Digital Wallet", "🏦 Net Banking"],
+            label_visibility="collapsed"
+        )
+
+        st.markdown('<br>', unsafe_allow_html=True)
+        st.markdown(f"""
+            <div class="stat-box">
+                <div class="stat-label">Total Payable</div>
+                <div class="stat-value">₹50.00</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    with col2:
+        def payment_success():
+            st.session_state.paid_for_current = True
+            st.session_state.awaiting_otp = False
+            st.session_state.page = "app"
+
+        if not st.session_state.awaiting_otp:
+            st.markdown('<div class="section-title">Payment Details</div>', unsafe_allow_html=True)
+
+            if "Card" in payment_method:
+                st.text_input("Card Number", placeholder="xxxx xxxx xxxx xxxx")
+                c1, c2 = st.columns(2)
+                with c1: st.text_input("Expiry", placeholder="MM/YY")
+                with c2: st.text_input("CVV", type="password", placeholder="***")
+            
+            elif "UPI" in payment_method:
+                st.selectbox("Select App", ["Google Pay", "PhonePe", "Paytm"])
+                st.text_input("UPI ID", placeholder="user@bank")
+            
+            elif "Wallet" in payment_method:
+                st.selectbox("Select Wallet", ["Paytm", "Amazon Pay", "MobiKwik"])
+            
+            else:
+                st.selectbox("Select Bank", ["SBI", "HDFC", "ICICI", "Axis"])
+
+            st.markdown("<br>", unsafe_allow_html=True)
+            if st.button("Verify & Pay ₹50"):
+                st.session_state.awaiting_otp = True
+                st.rerun()
+
+        else:
+            # OTP Step
+            st.markdown('<div class="section-title">🔐 OTP Verification</div>', unsafe_allow_html=True)
+            st.write("A 6-digit code was sent to your phone.")
+            otp = st.text_input("Enter OTP", max_chars=6)
+
+            if st.button("Confirm Transaction"):
+                if otp == "123456":
+                    payment_success()
+                    st.success("Payment Verified!")
+                    st.balloons()
+                else:
+                    st.error("Invalid OTP.")
+            
+            if st.button("← Back to Details"):
+                st.session_state.awaiting_otp = False
+                st.rerun()
+
+    st.markdown('<div style="text-align: center; margin-top: 30px; font-size: 12px; color: #94A3B8;">🔒 Encrypted by 256-bit SSL Security</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True) # End payment-card
+
 # ==================================================
 # MAIN APP (AFTER LOGIN)
 # ==================================================
@@ -1185,15 +1900,38 @@ def main_app():
 # ==================================================
 # 🔑 Show header ONLY on landing page
 
+# ==================================================
+# ROUTING (MAIN APP CONTROLLER)
+# ==================================================
+
+# 🔹 Initialize page state (VERY IMPORTANT)
+if "page" not in st.session_state:
+    st.session_state.page = "landing"
+
+page = st.session_state.page
+
+# 🔹 Show header ONLY on landing page
 if st.session_state.page == "landing":
     render_header()
-
-
-if st.session_state.page == "landing":
     landing_page()
+
 elif st.session_state.page == "login":
     login_page()
+
 elif st.session_state.page == "signup":
     signup_page()
+
 elif st.session_state.page == "app":
     app_page()
+elif st.session_state.page == "profile":
+    render_profile_page()
+
+elif st.session_state.page == "payment":
+    render_payment_page()
+
+elif page == "admin_login":
+    admin_login_page()
+
+elif page == "admin_dashboard":
+    admin_dashboard_page()
+
