@@ -1,5 +1,6 @@
 # app.py
 import streamlit as st
+import torch
 import re
 import io
 from PIL import Image, ImageEnhance
@@ -877,8 +878,8 @@ def login_page():
 def admin_login_page():
     set_background("assets/bn.png", overlay=True)
     st.button("⬅ Back to Home", key="back_login", on_click=set_page, args=("landing",))
-    st.markdown("## Welcome back 👋")
-    st.markdown("Login to continue using Toonify")
+    st.markdown("## Welcome back Admin 👋")
+    st.markdown("please enter your credentials to verify your identity")
 
     left_col, right_col = st.columns([1.2, 1])
 
@@ -1118,6 +1119,7 @@ def admin_dashboard_page():
 
     components.html(html, height=800)
 
+    st.button("⬅ Back to Home", key="back_login", on_click=set_page, args=("landing",))
 
 def signup_page():
     set_background("assets/babaoi.png", overlay=True)
@@ -1594,9 +1596,47 @@ def render_profile_page():
 
 
 # ==================================================#
+
+
+import streamlit as st
+import torch
+from PIL import Image
+import io
+from diffusers import StableDiffusionImg2ImgPipeline
+
+# --- 1. MODEL LOADING (CACHED) ---
+
+@st.cache_resource
+def load_anime_model():
+    """Load lightweight GAN for Portrait style."""
+    model = torch.hub.load("bryandlee/animegan2-pytorch:main", "generator", pretrained="face_paint_512_v2")
+    face2paint = torch.hub.load("bryandlee/animegan2-pytorch:main", "face2paint", size=512)
+    return model, face2paint
+
+@st.cache_resource
+def load_anything_v5():
+    """Load professional Anything v5 for Anime, Ghibli, and Sketch."""
+    model_id = "stablediffusionapi/anything-v5"
+    device = "cuda" if torch.cuda.is_available() else "cpu"
+    # Use float16 for speed if on GPU, else float32
+    torch_dtype = torch.float16 if device == "cuda" else torch.float32
+    
+    pipe = StableDiffusionImg2ImgPipeline.from_pretrained(
+        model_id, 
+        torch_dtype=torch_dtype,
+        use_safetensors=True
+    )
+    pipe = pipe.to(device)
+    
+    # Enable memory saving if on GPU
+    if device == "cuda":
+        pipe.enable_attention_slicing()
+    return pipe
+
 def app_page():
-    set_background("assets/nano.png", overlay=True)
-    render_topbar()
+    # --- UI Header & Assets (Placeholders for your existing functions) ---
+    # set_background("assets/nano.png", overlay=True) 
+    # render_topbar() 
 
     st.markdown("### Upload an image")
 
@@ -1606,7 +1646,6 @@ def app_page():
         accept_multiple_files=False,
     )
 
-    # 🔹 RESET PAYMENT WHEN NEW IMAGE IS UPLOADED (STEP 2)
     if uploaded:
         st.session_state.paid_for_current = False
 
@@ -1616,67 +1655,91 @@ def app_page():
         horizontal=True,
     )
 
-    # 🔹 LOAD LOCAL DEMO IMAGES
-    local_original = Image.open("assets/real2.jpg")
-    local_cartoon = Image.open("assets/dush2.png")
-
     # -------- CONVERT BUTTON --------
     if uploaded and st.button("✨ Convert to Cartoon", key="convert_btn"):
-        with st.spinner("Converting..."):
-            st.session_state.demo_image = local_original
-            st.session_state.demo_result = local_cartoon
+        with st.spinner(f"Converting to {style} style using AI..."):
+            input_img = Image.open(uploaded).convert("RGB")
+            device = "cuda" if torch.cuda.is_available() else "cpu"
+            
+            # --- LOGIC FOR PORTRAIT (Lightweight GAN) ---
+            if style == "Portrait":
+                model, face2paint = load_anime_model()
+                result_img = face2paint(model, input_img)
+            
+            # --- LOGIC FOR ANYTHING V5 (Diffusion Styles) ---
+            else:
+                pipe = load_anything_v5()
+                
+                # Define prompts based on style
+                style_map = {
+                    "Anime": {
+                        "prompt": "masterpiece, best quality, highres, professional anime art, vibrant colors, detailed lighting",
+                        "neg": "lowres, bad anatomy, text, error, worst quality, low quality, blurry"
+                    },
+                    "Ghibli": {
+                        "prompt": "ghibli style, hand-painted, soft lighting, whimsical, lush background, Hayao Miyazaki, studio ghibli masterpiece",
+                        "neg": "photo, realistic, 3d, high contrast, dark, worst quality, low quality"
+                    },
+                    "Sketch": {
+                        "prompt": "professional pencil sketch, graphite, cross-hatching, hand-drawn, paper texture, monochrome, clean lineart",
+                        "neg": "color, photo, blurry, lowres, worst quality, low quality"
+                    }
+                }
+                
+                selected = style_map[style]
+                
+                # Run Diffusion (Resizing to 512 for optimal Anything v5 results)
+                with torch.inference_mode():
+                    result_img = pipe(
+                        prompt=selected["prompt"],
+                        negative_prompt=selected["neg"],
+                        image=input_img.resize((512, 512)),
+                        strength=0.5, # 0.5 balances likeness and style
+                        guidance_scale=7.5
+                    ).images[0]
+
+            # Store in session state
+            st.session_state.demo_image = input_img
+            st.session_state.demo_result = result_img
             st.session_state.generated = True
+            
+            # Tracking logic
+            if "conversions" not in st.session_state: st.session_state.conversions = 0
             st.session_state.conversions += 1
 
-            # Track converted images
             if "user_data" not in st.session_state:
-                st.session_state.user_data = {
-                    "converted_images": [],
-                    "downloads": 0
-                }
+                st.session_state.user_data = {"converted_images": [], "downloads": 0}
 
             if uploaded.name not in st.session_state.user_data["converted_images"]:
                 st.session_state.user_data["converted_images"].append(uploaded.name)
 
     # -------- SHOW IMAGES (PERSISTENT) --------
-    if st.session_state.generated:
+    if st.session_state.get("generated"):
         spacer_l, col1, col2, spacer_r = st.columns([1, 2, 2, 1])
 
         with col1:
-            st.image(
-                st.session_state.demo_image,
-                caption="Original",
-                width=260
-            )
+            st.image(st.session_state.demo_image, caption="Original", width=260)
 
         with col2:
-            st.image(
-                st.session_state.demo_result,
-                caption=f"{style} Style",
-                width=260
-            )
+            st.image(st.session_state.demo_result, caption=f"{style} Style", width=260)
 
+        # Prepare for download
         buf = io.BytesIO()
         st.session_state.demo_result.save(buf, format="PNG")
 
         # -------- DOWNLOAD / PAYMENT LOGIC --------
-        if st.session_state.paid_for_current:
-            if st.download_button(
+        if st.session_state.get("paid_for_current"):
+            st.download_button(
                 "⬇ Download Cartoon Image",
                 buf.getvalue(),
-                file_name="toonified.png",
+                file_name=f"{style.lower()}_style.png",
                 mime="image/png",
-            ):
-                st.session_state.downloads += 1
-                st.session_state.paid_for_current = False  # require payment again
-
+            )
         else:
             st.warning("🔒 To download this image, please pay ₹50")
-
             if st.button("💳 Pay ₹50", key="pay_btn"):
                 st.session_state.page = "payment"
-
-
+                st.rerun()
 
 import streamlit as st
 import base64
@@ -1822,7 +1885,7 @@ def render_payment_page():
                 <div class="stat-value">₹50.00</div>
             </div>
         """, unsafe_allow_html=True)
-
+    st.button("⬅cancel payment", key="back_login", on_click=set_page, args=("landing",))
     with col2:
         def payment_success():
             st.session_state.paid_for_current = True
